@@ -927,6 +927,16 @@ inline void print(const string& s, const int textcolor, const int backgroundcolo
 	std::cout << s;
 	print_color_reset();
 }
+inline void println(const string& s, const int textcolor) {
+	print_color(textcolor);
+	std::cout << s+"\n";
+	print_color_reset();
+}
+inline void println(const string& s, const int textcolor, const int backgroundcolor) {
+	print_color(textcolor, backgroundcolor);
+	std::cout << s+"\n";
+	print_color_reset();
+}
 inline void print_no_reset(const string& s, const int textcolor) { // print with color, but don't reset color afterwards (faster)
 	print_color(textcolor);
 	std::cout << s;

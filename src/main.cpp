@@ -49,9 +49,14 @@ struct GPU {
 	uint power_current=0u, power_max=300u; // in W
 	uint fan_current=0u, fan_max=5000u; // in RPM
 	uint clock_core_current=0u, clock_core_max=0u, clock_memory_current=0u, clock_memory_max=0u; // in MHz
-	uint pcie_bandwidth_current=0u, pcie_bandwidth_max=0u; // bidirectional PCIe bandwidth in MB/s: 32GB/s (PCIe 3.0 x16), 64GB/s (PCIe 4.0 x16), 128GB/s (PCIe 5.0 x16)
+	uint pcie_bandwidth_current=0u, pcie_bandwidth_max=0u, pcie_gen_max=0u, pcie_width_max=0u; // bidirectional PCIe bandwidth in MB/s: 32GB/s (PCIe 3.0 x16), 64GB/s (PCIe 4.0 x16), 128GB/s (PCIe 5.0 x16)
 	uint memory_bus_width = 0u; // in bit
 	uint memory_transfers_per_clock = 0u; // depends on memory type: 2 ((LP)DDR1-5, GDDR1-4, HBM1-4), 4 (GDDR5), 8 (GDDR5X, GDDR6), 16 (GDDR6X, GDDR6W, GDDR7)
+	void set_pcie_bandwidth_max(const uint pcie_gen, const uint pcie_width) {
+		pcie_gen_max = max(pcie_gen_max, pcie_gen); // harden against load-dependent reading
+		pcie_width_max = max(pcie_width_max, pcie_width); // harden against load-dependent reading
+		pcie_bandwidth_max = 246u*pow(2u, pcie_gen_max)*pcie_width_max;
+	}
 	uint get_usage()            { return percentage(usage_current           , usage_max           ); } // in %
 	uint get_memory_bandwidth() { return percentage(memory_bandwidth_current, memory_bandwidth_max); } // in %
 	uint get_memory()           { return percentage(memory_current          , memory_max          ); } // in %
@@ -406,7 +411,7 @@ void gpu_update_nvidia() {
 		nvmlUtilization_t nvml_utilization = {};
 		nvmlMemory_t nvml_memory = {};
 		nvmlFanSpeedInfo_t nvml_fan = {};
-		uint gpu_temperature_current=0u, gpu_milliwatts_current=0u, gpu_milliwatts_total=0u, gpu_fan_percent=0u,gpu_memory_transfers_current_half=0u, gpu_pcie_bandwidth_tx_kbps=0u, gpu_pcie_bandwidth_rx_kbps=0u, gpu_pcie_link_gen=0u, gpu_pcie_link_width=0u;
+		uint gpu_temperature_current=0u, gpu_milliwatts_current=0u, gpu_milliwatts_total=0u, gpu_fan_percent=0u,gpu_memory_transfers_current_half=0u, gpu_pcie_bandwidth_tx_kbps=0u, gpu_pcie_bandwidth_rx_kbps=0u, gpu_pcie_gen=0u, gpu_pcie_width=0u;
 		nvmlDeviceGetUtilizationRates(nvml_device, &nvml_utilization);
 		nvmlDeviceGetMemoryInfo(nvml_device, &nvml_memory);
 		nvmlDeviceGetTemperature(nvml_device, NVML_TEMPERATURE_GPU, &gpu_temperature_current);
@@ -418,8 +423,8 @@ void gpu_update_nvidia() {
 		nvmlDeviceGetClockInfo(nvml_device, NVML_CLOCK_MEM, &gpu_memory_transfers_current_half); // wrongly reports (MT/s / 2) instead of MHz
 		nvmlDeviceGetPcieThroughput(nvml_device, NVML_PCIE_UTIL_TX_BYTES, &gpu_pcie_bandwidth_tx_kbps); // transmit
 		nvmlDeviceGetPcieThroughput(nvml_device, NVML_PCIE_UTIL_RX_BYTES, &gpu_pcie_bandwidth_rx_kbps); // receive
-		nvmlDeviceGetCurrPcieLinkGeneration(nvml_device, &gpu_pcie_link_gen);
-		nvmlDeviceGetCurrPcieLinkWidth(nvml_device, &gpu_pcie_link_width);
+		nvmlDeviceGetCurrPcieLinkGeneration(nvml_device, &gpu_pcie_gen);
+		nvmlDeviceGetCurrPcieLinkWidth(nvml_device, &gpu_pcie_width);
 		gpus[g].usage_current = (uint)nvml_utilization.gpu;
 		gpus[g].memory_bandwidth_current = (((gpu_memory_transfers_current_half*2u)*gpus[g].memory_bus_width/8u)*(uint)nvml_utilization.memory+50u)/100u; // +50u for correct rounding
 		gpus[g].memory_current = (uint)((nvml_memory.used+524288ull)/1048576ull);
@@ -432,7 +437,7 @@ void gpu_update_nvidia() {
 		gpus[g].fan_max = support_fan_rpm||support_fan_percent ? 5000u : max_uint; // no data available
 		gpus[g].clock_memory_current = (gpu_memory_transfers_current_half*2u)/gpus[g].memory_transfers_per_clock;
 		const uint gpu_pcie_bandwidth_current = (gpu_pcie_bandwidth_tx_kbps+gpu_pcie_bandwidth_rx_kbps+512u)/1024u;
-		gpus[g].pcie_bandwidth_max = max(gpus[g].pcie_bandwidth_max, 246u*pow(2u, gpu_pcie_link_gen)*gpu_pcie_link_width); // harden against load-dependent reading
+		gpus[g].set_pcie_bandwidth_max(gpu_pcie_gen, gpu_pcie_width); // harden against load-dependent reading
 		gpus[g].pcie_bandwidth_current = gpu_pcie_bandwidth_current<2u*gpus[g].pcie_bandwidth_max ? gpu_pcie_bandwidth_current : 0u; // harden against spikes
 	}
 }
@@ -567,7 +572,7 @@ void gpu_finalize_amd() {
 }
 #elif defined(__linux__)
 // not available: fan_max
-// broken: pcie_bandwidth_current, pcie_bandwidth_max
+// broken: pcie_bandwidth_current
 // unreliable/estimate: -
 #include "AMDSMI/include/amdsmi.h" // https://github.com/ROCm/amdsmi/blob/amd-mainline/include/amd_smi/amdsmi.h https://rocm.docs.amd.com/projects/amdsmi/en/latest/how-to/amdsmi-cpp-lib.html
 uint amdsmi_gpu_start=0u, amdsmi_gpu_number=0u;
@@ -671,7 +676,7 @@ void gpu_update_amd() {
 		gpus[g].clock_core_current = (uint)((amdsmi_frequencies_core.frequency[amdsmi_frequencies_core.current]+500000ull)/1000000ull);
 		gpus[g].clock_memory_current = 2u*(uint)((amdsmi_frequencies_memory.frequency[amdsmi_frequencies_memory.current]+500000ull)/1000000ull);
 		gpus[g].pcie_bandwidth_current = support_gpu_pci ? (uint)((amdsmi_pcie_sent+amdsmi_pcie_received+500000ull)/1000000ull) : support_pcie_info&&amdsmi_pcie_info.pcie_metric.pcie_bandwidth<max_uint ? amdsmi_pcie_info.pcie_metric.pcie_bandwidth : support_gpu_metrics&&amdsmi_gpu_metrics.pcie_bandwidth_inst<max_ulong ? (uint)amdsmi_gpu_metrics.pcie_bandwidth_inst*1000u : max_uint; // harden against broken counters
-		gpus[g].pcie_bandwidth_max = max(gpus[g].pcie_bandwidth_max, 246u*pow(2u, amdsmi_pcie_info.pcie_static.pcie_interface_version)*amdsmi_pcie_info.pcie_metric.pcie_width); // harden against load-dependent reading // 2u*amdsmi_pcie_info.pcie_metric.pcie_speed // 123u*amdsmi_gpu_metrics.pcie_link_width*amdsmi_gpu_metrics.pcie_link_speed/5u
+		gpus[g].set_pcie_bandwidth_max(amdsmi_pcie_info.pcie_static.pcie_interface_version, (uint)amdsmi_pcie_info.pcie_metric.pcie_width); // harden against load-dependent reading // 2u*amdsmi_pcie_info.pcie_metric.pcie_speed // 123u*amdsmi_gpu_metrics.pcie_link_width*amdsmi_gpu_metrics.pcie_link_speed/5u
 	}
 }
 void gpu_finalize_amd() {
@@ -687,7 +692,7 @@ void gpu_finalize_amd() {
 // (Windows) unreliable/estimate: name
 // (Linux) not available: -
 // (Linux) broken: power_max, fan_current, fan_max
-// (Linux) unreliable/estimate: clock_memory_current, pcie_bandwidth_max
+// (Linux) unreliable/estimate: clock_memory_current
 #include "SYSMAN/include/zes_api.h" // https://github.com/oneapi-src/level-zero/blob/master/include/zes_api.h https://github.com/intel/xpumanager/blob/master/windows/winxpum/core/libs/ze_loader.lib
 #pragma warning(disable:6385)
 uint zes_gpu_start=0u, zes_gpu_number=0u;
@@ -1262,9 +1267,9 @@ void gpu_update_intel() {
 		const ulong zes_pcie_bandwidth_interval = zes_pci_stats.timestamp-zes_last_pci_timestamp[i];
 		zes_available_pci[i] = zes_available_pci[i]||zes_pci_stats.txCounter+zes_pci_stats.rxCounter>0ull; // harden against reading dropouts
 		gpus[g].pcie_bandwidth_current =  zes_available_pci[i] ? (zes_pcie_bandwidth_interval>0ull ? (uint)((zes_pci_stats.txCounter+zes_pci_stats.rxCounter-zes_last_pci[i]+zes_pcie_bandwidth_interval/2ull)/zes_pcie_bandwidth_interval) : gpus[g].pcie_bandwidth_current) : max_uint; // reuse last value if interval is 0
-		const uint gpu_pcie_link_width = zes_pci_stats.speed.width>0 ? zes_pci_stats.speed.width : zes_pci_state.speed.width>0 ? zes_pci_state.speed.width : gpus[g].pcie_bandwidth_max==0u&&zes_pci_properties.maxSpeed.width>0 ? zes_pci_properties.maxSpeed.width : 0u; // harden against broken counters
-		const uint gpu_pcie_link_gen = zes_pci_stats.speed.gen>0 ? zes_pci_stats.speed.gen : zes_pci_state.speed.gen>0 ? zes_pci_state.speed.gen : gpus[g].pcie_bandwidth_max==0u&&zes_pci_properties.maxSpeed.gen>0 ? zes_pci_properties.maxSpeed.gen : 0u; // harden against broken counters
-		gpus[g].pcie_bandwidth_max = max(gpus[g].pcie_bandwidth_max, 246u*pow(2u, gpu_pcie_link_gen)*gpu_pcie_link_width); // harden against load-dependent reading
+		const uint gpu_pcie_gen = zes_pci_stats.speed.gen>0 ? zes_pci_stats.speed.gen : zes_pci_state.speed.gen>0 ? zes_pci_state.speed.gen : gpus[g].pcie_bandwidth_max==0u&&zes_pci_properties.maxSpeed.gen>0 ? zes_pci_properties.maxSpeed.gen : 0u; // harden against broken counters
+		const uint gpu_pcie_width = zes_pci_stats.speed.width>0 ? zes_pci_stats.speed.width : zes_pci_state.speed.width>0 ? zes_pci_state.speed.width : gpus[g].pcie_bandwidth_max==0u&&zes_pci_properties.maxSpeed.width>0 ? zes_pci_properties.maxSpeed.width : 0u; // harden against broken counters
+		gpus[g].set_pcie_bandwidth_max(gpu_pcie_gen, gpu_pcie_width); // harden against load-dependent reading
 		zes_last_pci[i] = zes_pci_stats.txCounter+zes_pci_stats.rxCounter;
 		zes_last_pci_timestamp[i] = zes_pci_stats.timestamp;
 	}
@@ -1353,6 +1358,9 @@ void finalize_graphs() {
 
 
 
+string value_to_string(const uint x) {
+	return x<max_uint ? to_string(x) : "?";
+}
 void print_percentage(const uint percentage, const string suffix) {
 	int k = 4, colors[] = { color_green, color_yellow, color_orange, color_red };
 	print(d3(percentage)+suffix, colors[clamp(((int)percentage*k+50)/100, 0, k-1)]);
@@ -1382,7 +1390,7 @@ void print_progress_number(uint width, const uint value_current, const uint valu
 	} else {
 		uint k = 4u, colors[] = { color_green, color_yellow, color_orange, color_red };
 		//uint k = 6u, colors[] = { color_dark_blue, color_magenta, color_red, color_orange, color_yellow, color_white };
-		string v = (value_current<max_uint ? to_string(value_current) : "?")+(unit!="%"&&width>19u ? " / "+to_string(value_max) : "")+unit;
+		string v = value_to_string(value_current)+(unit!="%"&&width>19u ? " / "+to_string(value_max) : "")+unit;
 		const uint l = max(width-2u, length(v));
 		uint percentage = ::percentage(value_current, value_max);
 		percentage = percentage==(uint)max_uchar ? 0u : percentage;
@@ -1437,6 +1445,21 @@ int get_vendor_color(const char vendor) {
 }
 int get_vendor_color_ascii(const char vendor) {
 	return vendor=='N' ? color_dark_green : vendor=='A' ? color_dark_red : vendor=='I' ? color_blue : color_light_gray;
+}
+void print_specs() {
+	const int label_color = color_light_blue;
+	print("CPU  ", label_color); print(": "); print(cpu.name, get_vendor_color_ascii(cpu.vendor)); println(" ("+to_string(cpu.cores)+" threads)");
+	print("RAM  ", label_color); println(": "+value_to_string(cpu.memory_max) +" MB");
+	print("PCIe ", label_color); println(": "+value_to_string(cpu.pcie_bandwidth_max) +" MB/s");
+	println();
+	for(uint g=0u; g<gpu_number; g++) {
+		print("GPU "+to_string(g+1u), label_color); print(": "); println(gpus[g].name, get_vendor_color_ascii(gpus[g].vendor));
+		print("VRAM ", label_color); println(": "+value_to_string(gpus[g].memory_max) +" MB @ "+to_string((gpus[g].memory_bandwidth_max+500u)/1000u)+" GB/s ("+value_to_string(gpus[g].memory_bus_width)+"-bit @ "+value_to_string(gpus[g].clock_memory_max*gpus[g].memory_transfers_per_clock)+" MT/s)");
+		print("TDP  ", label_color); println(": "+value_to_string(gpus[g].power_max) +" W");
+		print("Clock", label_color); println(": "+value_to_string(gpus[g].clock_core_max) +" MHz (core), "+value_to_string(gpus[g].clock_memory_max) +" MHz (memory)");
+		print("PCIe ", label_color); println(": "+value_to_string(gpus[g].pcie_bandwidth_max)+" MB/s (PCIe "+value_to_string(gpus[g].pcie_gen_max)+".0 x"+value_to_string(gpus[g].pcie_width_max)+")");
+		if(g+1u<gpu_number) println();
+	}
 }
 void print_data_bar(uint width, uint height) {
 	const uint graphs = cpu.cores;
@@ -1624,17 +1647,20 @@ int main(int argc, char* argv[]) {
 #endif // Linux
 	const vector<string> main_arguments = get_main_arguments(argc, argv);
 	bool graphs = false;
+	initialize_data();
+	update_data();
 	if(main_arguments.size()>0) {
 		if(contains(main_arguments[0], "-g")) {
 			graphs = true;
 		} else if(contains(main_arguments[0], "-b")) {
 			graphs = false;
 		} else {
-			print("hw-smi (c) Dr. Moritz Lehmann\nhttps://github.com/ProjectPhysX/hw-smi\n\nCommand-line options:\n -b / --bars  : visualize metrics as bars (default)\n -g / --graphs: visualize metrics as graphs\n -h / --help  : print this message\n\nPress Enter to continue.");
+			println("hw-smi (c) Dr. Moritz Lehmann\nhttps://github.com/ProjectPhysX/hw-smi\n\nCommand-line options:\n -b / --bars  : visualize metrics as bars (default)\n -g / --graphs: visualize metrics as graphs\n -h / --help  : print this message\n\nHardware detected:\n");
+			print_specs();
+			print("\nPress Enter to continue.");
 			wait();
 		}
 	}
-	initialize_data();
 	if(graphs) initialize_graphs();
 	Clock clock;
 	uint last_width=0u, last_height=0u;
