@@ -240,7 +240,8 @@ void cpu_initialize() { // initialize data
 		for(uint i=0u; i<(uint)lines.size(); i++) {
 			const vector<string> values = split_regex(lines[i], "\\s*:\\s*");
 			if(values[0]=="model name") {
-				cpu.name = clean_device_name(values[1]);
+				string cpu_name = clean_device_name(values[1]);
+				cpu.name = length(cpu_name)>0u ? cpu_name : "?";
 				if(contains(cpu.name, "Intel")) cpu.vendor = 'I';
 				if(contains(cpu.name, "AMD")) cpu.vendor = 'A';
 				break;
@@ -1444,21 +1445,20 @@ int get_vendor_color(const char vendor) {
 	return vendor=='N' ? 0x76B900 : vendor=='A' ? 0xED1C24 : vendor=='I' ? 0x0071C5 : 0xBFBFBF;
 }
 int get_vendor_color_ascii(const char vendor) {
-	return vendor=='N' ? color_dark_green : vendor=='A' ? color_dark_red : vendor=='I' ? color_blue : color_light_gray;
+	return vendor=='N' ? color_dark_green : vendor=='A' ? color_dark_red : vendor=='I' ? color_blue : color_gray;
 }
 void print_specs() {
 	const int label_color = color_light_blue;
 	print("CPU  ", label_color); print(": "); print(cpu.name, get_vendor_color_ascii(cpu.vendor)); println(" ("+to_string(cpu.cores)+" threads)");
 	print("RAM  ", label_color); println(": "+value_to_string(cpu.memory_max) +" MB");
 	print("PCIe ", label_color); println(": "+value_to_string(cpu.pcie_bandwidth_max) +" MB/s");
-	println();
 	for(uint g=0u; g<gpu_number; g++) {
+		println();
 		print("GPU "+to_string(g+1u), label_color); print(": "); println(gpus[g].name, get_vendor_color_ascii(gpus[g].vendor));
 		print("VRAM ", label_color); println(": "+value_to_string(gpus[g].memory_max) +" MB @ "+to_string((gpus[g].memory_bandwidth_max+500u)/1000u)+" GB/s ("+value_to_string(gpus[g].memory_bus_width)+"-bit @ "+value_to_string(gpus[g].clock_memory_max*gpus[g].memory_transfers_per_clock)+" MT/s)");
 		print("TDP  ", label_color); println(": "+value_to_string(gpus[g].power_max) +" W");
 		print("Clock", label_color); println(": "+value_to_string(gpus[g].clock_core_max) +" MHz (core), "+value_to_string(gpus[g].clock_memory_max) +" MHz (memory)");
 		print("PCIe ", label_color); println(": "+value_to_string(gpus[g].pcie_bandwidth_max)+" MB/s (PCIe "+value_to_string(gpus[g].pcie_gen_max)+".0 x"+value_to_string(gpus[g].pcie_width_max)+")");
-		if(g+1u<gpu_number) println();
 	}
 }
 void print_data_bar(uint width, uint height) {
