@@ -240,13 +240,17 @@ void cpu_initialize() { // initialize data
 			const vector<string> lines = split_regex(proc_cpuinfo, "\\s*\n\\s*");
 			for(uint i=0u; i<(uint)lines.size(); i++) {
 				const vector<string> values = split_regex(lines[i], "\\s*:\\s*");
+				bool found = false;
 				if(values[0]=="model name") {
 					string cpu_name = clean_device_name(values[1]);
 					cpu.name = length(cpu_name)>0u ? cpu_name : "?";
 					if(contains(cpu.name, "Intel")) cpu.vendor = 'I';
 					if(contains(cpu.name, "AMD")) cpu.vendor = 'A';
+					if(contains(cpu.name, "Neoverse")) cpu.vendor = 'N';
+					found = true;
 					break;
 				}
+				if(!found) cpu.name = "?"; // no data available
 			}
 		} else {
 			cpu.name = "?"; // no data available
