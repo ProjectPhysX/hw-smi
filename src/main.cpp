@@ -703,10 +703,10 @@ void gpu_finalize_amd() {
 #ifdef INTEL_GPU
 // (Windows) not available: -
 // (Windows) broken: fan_max
-// (Windows) unreliable/estimate: name
+// (Windows) unreliable/estimate: name, memory_bandwidth_max
 // (Linux) not available: -
 // (Linux) broken: power_max, fan_current, fan_max
-// (Linux) unreliable/estimate: clock_memory_current
+// (Linux) unreliable/estimate: memory_bandwidth_max, clock_memory_current
 #include "SYSMAN/include/zes_api.h" // https://github.com/oneapi-src/level-zero/blob/master/include/zes_api.h https://github.com/intel/xpumanager/blob/master/windows/winxpum/core/libs/ze_loader.lib
 #pragma warning(disable:6385)
 uint zes_gpu_start=0u, zes_gpu_number=0u;
@@ -1051,8 +1051,9 @@ void gpu_initialize_intel() {
 			zesMemoryGetBandwidth(zes_mem_handles[j], &zes_mem_bandwidth);
 			zesMemoryGetProperties(zes_mem_handles[j], &zes_mem_properties);
 			zesMemoryGetState(zes_mem_handles[j], &zes_mem_state);
-			uint zes_memory_bandwidth_max = (uint)((zes_mem_bandwidth.maxBandwidth+500000ull)/1000000ull); // zes_mem_bandwidth.maxBandwidth may wrongly report bandwidth in bits/s instead of Bytes/s, so divide by 8
-			gpus[g].memory_bandwidth_max = zes_memory_bandwidth_max>0u ? (zes_memory_bandwidth_max<3300000u ? zes_memory_bandwidth_max : zes_memory_bandwidth_max/8u) : zes_get_memory_bandwidth_max(zes_device_properties.core.deviceId); // harden against broken counters
+			const uint zes_memory_bandwidth_max = (uint)((zes_mem_bandwidth.maxBandwidth+500000ull)/1000000ull)/8u; // zes_mem_bandwidth.maxBandwidth wrongly reports bandwidth in bits/s instead of Bytes/s, so divide by 8
+			const uint zes_memory_bandwidth_max_fallback = zes_get_memory_bandwidth_max(zes_device_properties.core.deviceId);
+			gpus[g].memory_bandwidth_max = zes_memory_bandwidth_max_fallback>0u ? zes_memory_bandwidth_max_fallback : zes_memory_bandwidth_max; // harden against broken counters
 			gpus[g].memory_max = (uint)((max(zes_mem_properties.physicalSize, zes_mem_state.size)+524288ull)/1048576ull); // harden against broken counters
 			const uint memory_max_gb = (gpus[g].memory_max+500u)/1000u;
 			uint memory_bus_width_fallback = memory_max_gb*16u; // harden against broken counters
