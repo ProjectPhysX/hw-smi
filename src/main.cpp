@@ -52,6 +52,7 @@ struct GPU {
 	uint pcie_bandwidth_current=0u, pcie_bandwidth_max=0u, pcie_gen_max=0u, pcie_width_max=0u; // bidirectional PCIe bandwidth in MB/s: 32GB/s (PCIe 3.0 x16), 64GB/s (PCIe 4.0 x16), 128GB/s (PCIe 5.0 x16)
 	uint memory_bus_width = 0u; // in bit
 	uint memory_transfers_per_clock = 0u; // depends on memory type: 2 ((LP)DDR1-5, GDDR1-4, HBM1-4), 4 (GDDR5), 8 (GDDR5X, GDDR6), 16 (GDDR6X, GDDR6W, GDDR7)
+	uint rebar = max_uint; // Resizable Bar supported and enabled?
 	void set_pcie_bandwidth_max(const uint pcie_gen, const uint pcie_width) {
 		pcie_gen_max = max(pcie_gen_max, pcie_gen); // harden against load-dependent reading
 		pcie_width_max = max(pcie_width_max, pcie_width); // harden against load-dependent reading
@@ -384,7 +385,7 @@ void cpu_finalize() {
 #endif // LINUX_CPU
 
 #ifdef NVIDIA_GPU
-// not available: fan_max, memory_transfers_per_clock
+// not available: fan_max, memory_transfers_per_clock, rebar
 // broken: power_current (pre-Pascal), fan_current (pre-Pascal)
 // unreliable/estimate: fan_current
 #include "NVML/include/nvml.h" // https://github.com/NVIDIA/nvidia-settings/blob/main/src/nvml.h
@@ -463,7 +464,7 @@ void gpu_finalize_nvidia() {
 
 #ifdef AMD_GPU
 #if defined(_WIN32)
-// not available: pcie_bandwidth_current, pcie_bandwidth_max, memory_transfers_per_clock
+// not available: pcie_bandwidth_current, pcie_bandwidth_max, memory_transfers_per_clock, rebar
 // broken: -
 // unreliable/estimate: memory_bandwidth_current, memory_bandwidth_max, memory_bus_width
 #include "ADLX/include/ADLXHelper.h" // https://github.com/GPUOpen-LibrariesAndSDKs/ADLX/blob/main/SDK/ADLXHelper/Windows/Cpp/ADLXHelper.h
@@ -585,7 +586,7 @@ void gpu_finalize_amd() {
 	adlx_helper.Terminate();
 }
 #elif defined(__linux__)
-// not available: fan_max
+// not available: fan_max, rebar
 // broken: pcie_bandwidth_current
 // unreliable/estimate: -
 #include "AMDSMI/include/amdsmi.h" // https://github.com/ROCm/amdsmi/blob/amd-mainline/include/amd_smi/amdsmi.h https://rocm.docs.amd.com/projects/amdsmi/en/latest/how-to/amdsmi-cpp-lib.html
@@ -1035,6 +1036,7 @@ void gpu_initialize_intel() {
 		const uint g = zes_gpu_start+i;
 		const zes_device_handle_t& zes_device = zes_devices[i];
 		zes_device_properties_t zes_device_properties = {};
+		zes_device_properties.stype = ZES_STRUCTURE_TYPE_DEVICE_PROPERTIES;
 		zesDeviceGetProperties(zes_device, &zes_device_properties);
 		const string zes_gpu_name = trim(string(zes_device_properties.core.name));
 		gpus[g].name = length(zes_gpu_name)>0u&&!contains(zes_gpu_name, "[0x") ? clean_device_name(zes_gpu_name) : zes_get_device_name(zes_device_properties.core.deviceId); // harden against broken counters
@@ -1095,6 +1097,7 @@ void gpu_initialize_intel() {
 		zesDeviceEnumFrequencyDomains(zes_device, &zes_freq_count, zes_freq_handles);
 		for(uint j=0u; j<zes_freq_count; j++) {
 			zes_freq_properties_t zes_freq_properties = {};
+			zes_freq_properties.stype = ZES_STRUCTURE_TYPE_FREQ_PROPERTIES;
 			zesFrequencyGetProperties(zes_freq_handles[j], &zes_freq_properties);
 			if(zes_freq_properties.type==ZES_FREQ_DOMAIN_GPU) {
 				zes_freq_range_t zes_freq_range = {};
@@ -1110,6 +1113,23 @@ void gpu_initialize_intel() {
 		delete[] zes_freq_handles;
 		if(gpus[g].clock_core_max==0u) gpus[g].clock_core_max = zes_device_properties.core.coreClockRate; // harden against broken counters
 		if(gpus[g].clock_memory_max==0u) gpus[g].clock_memory_max = gpus[g].memory_bus_width>0u ? gpus[g].memory_bandwidth_max*8u/(gpus[g].memory_transfers_per_clock*gpus[g].memory_bus_width) : 0u; // harden against broken counters
+		uint zes_bar_count = 0u;
+		zesDevicePciGetBars(zes_device, &zes_bar_count, nullptr);
+		zes_pci_bar_properties_t* zes_pci_bar_properties = new zes_pci_bar_properties_t[zes_bar_count];
+		zes_pci_bar_properties_1_2_t* zes_pci_bar_properties_1_2 = new zes_pci_bar_properties_1_2_t[zes_bar_count];
+		for(uint j=0u; j<zes_bar_count; j++) {
+			zes_pci_bar_properties[j].stype = ZES_STRUCTURE_TYPE_PCI_BAR_PROPERTIES;
+			zes_pci_bar_properties_1_2[j].stype = ZES_STRUCTURE_TYPE_PCI_BAR_PROPERTIES_1_2;
+			zes_pci_bar_properties[j].pNext = (void*)&zes_pci_bar_properties_1_2[j];
+		}
+		zesDevicePciGetBars(zes_device, &zes_bar_count, zes_pci_bar_properties);
+		bool zes_rebar = false;
+		for(uint j=0u; j<zes_bar_count; j++) {
+			zes_rebar = zes_rebar||(zes_pci_bar_properties_1_2->resizableBarSupported&&zes_pci_bar_properties_1_2->resizableBarEnabled);
+		}
+		gpus[g].rebar = (uint)zes_rebar;
+		delete[] zes_pci_bar_properties_1_2;
+		delete[] zes_pci_bar_properties;
 	}
 }
 void gpu_update_intel() {
@@ -1136,6 +1156,8 @@ void gpu_update_intel() {
 			zes_mem_bandwidth_t zes_mem_bandwidth = {};
 			zes_mem_properties_t zes_mem_properties = {};
 			zes_mem_state_t zes_mem_state = {};
+			zes_mem_properties.stype = ZES_STRUCTURE_TYPE_MEM_PROPERTIES;
+			zes_mem_state.stype = ZES_STRUCTURE_TYPE_MEM_STATE;
 			zesMemoryGetBandwidth(zes_mem_handles[j], &zes_mem_bandwidth);
 			zesMemoryGetProperties(zes_mem_handles[j], &zes_mem_properties);
 			zesMemoryGetState(zes_mem_handles[j], &zes_mem_state);
@@ -1159,6 +1181,7 @@ void gpu_update_intel() {
 		bool zes_temp_sensors_gpu_found = false;
 		for(uint j=0u; j<zes_temp_count; j++) {
 			zes_temp_properties_t zes_temp_properties = {};
+			zes_temp_properties.stype = ZES_STRUCTURE_TYPE_TEMP_PROPERTIES;
 			zesTemperatureGetProperties(zes_temp_handles[j], &zes_temp_properties);
 			if(zes_temp_properties.type==ZES_TEMP_SENSORS_GPU) {
 				double gpu_temperature = 0.0;
@@ -1203,6 +1226,7 @@ void gpu_update_intel() {
 			zes_power_sustained_limit_t zes_power_sustained_limit = {};
 			zes_power_burst_limit_t zes_power_burst_limit = {};
 			zes_power_peak_limit_t zes_power_peak_limit = {};
+			zes_power_properties.stype = ZES_STRUCTURE_TYPE_POWER_PROPERTIES;
 			zesPowerGetProperties(zes_pwr_handle, &zes_power_properties);
 			zesPowerGetLimits(zes_pwr_handle, &zes_power_sustained_limit, &zes_power_burst_limit, &zes_power_peak_limit); // returns ZE_RESULT_ERROR_UNSUPPORTED_FEATURE
 			const uint gpu_power_max = ((uint)max(zes_power_properties.defaultLimit, zes_power_sustained_limit.power)+500u)/1000u; // harden against broken counters
@@ -1212,6 +1236,9 @@ void gpu_update_intel() {
 				uint power_limit_ext_counter = 0u;
 				zesPowerGetLimitsExt(zes_pwr_handle, &power_limit_ext_counter, nullptr);
 				zes_power_limit_ext_desc_t* zes_power_limit_ext_descs = new zes_power_limit_ext_desc_t[power_limit_ext_counter];
+				for(uint j=0u; j<power_limit_ext_counter; j++) {
+					zes_power_limit_ext_descs[j].stype = ZES_STRUCTURE_TYPE_POWER_LIMIT_EXT_DESC;
+				}
 				zesPowerGetLimitsExt(zes_pwr_handle, &power_limit_ext_counter, zes_power_limit_ext_descs);
 				bool zes_power_limit_sustained_found = false;
 				for(uint j=0u; j<power_limit_ext_counter; j++) {
@@ -1241,6 +1268,8 @@ void gpu_update_intel() {
 			int gpu_fan = 0;
 			zes_fan_config_t zes_fan_config = {};
 			zes_fan_properties_t zes_fan_properties = {};
+			zes_fan_config.stype = ZES_STRUCTURE_TYPE_FAN_CONFIG;
+			zes_fan_properties.stype = ZES_STRUCTURE_TYPE_FAN_PROPERTIES;
 			zesFanGetState(zes_fan_handles[j], ZES_FAN_SPEED_UNITS_RPM, &gpu_fan);
 			zesFanGetConfig(zes_fan_handles[j], &zes_fan_config);
 			zesFanGetProperties(zes_fan_handles[j], &zes_fan_properties);
@@ -1258,14 +1287,17 @@ void gpu_update_intel() {
 		bool zes_freq_domain_memory_found = false;
 		for(uint j=0u; j<zes_freq_count; j++) {
 			zes_freq_properties_t zes_freq_properties = {};
+			zes_freq_properties.stype = ZES_STRUCTURE_TYPE_FREQ_PROPERTIES;
 			zesFrequencyGetProperties(zes_freq_handles[j], &zes_freq_properties);
 			if(zes_freq_properties.type==ZES_FREQ_DOMAIN_GPU) {
 				zes_freq_state_t zes_freq_state = {};
+				zes_freq_state.stype = ZES_STRUCTURE_TYPE_FREQ_STATE;
 				zesFrequencyGetState(zes_freq_handles[j], &zes_freq_state);
 				gpus[g].clock_core_current = zes_freq_state.actual>0.0 ? to_uint(zes_freq_state.actual) : 0.0;
 			}
 			if(zes_freq_properties.type==ZES_FREQ_DOMAIN_MEMORY) {
 				zes_freq_state_t zes_freq_state = {};
+				zes_freq_state.stype = ZES_STRUCTURE_TYPE_FREQ_STATE;
 				zesFrequencyGetState(zes_freq_handles[j], &zes_freq_state);
 				gpus[g].clock_memory_current = zes_freq_state.actual>0.0 ? to_uint(zes_freq_state.actual<4000.0 ? zes_freq_state.actual : zes_freq_state.actual/(double)gpus[g].memory_transfers_per_clock) : 0.0; // zes_freq_state.actual may wrongly return value in MT/s instead of MHz, so divide by memory_transfers_per_clock
 				zes_freq_domain_memory_found = true;
@@ -1276,6 +1308,8 @@ void gpu_update_intel() {
 		zes_pci_stats_t zes_pci_stats = {};
 		zes_pci_state_t zes_pci_state = {};
 		zes_pci_properties_t zes_pci_properties = {};
+		zes_pci_state.stype = ZES_STRUCTURE_TYPE_PCI_STATE;
+		zes_pci_properties.stype = ZES_STRUCTURE_TYPE_PCI_PROPERTIES;
 		zesDevicePciGetStats(zes_device, &zes_pci_stats);
 		zesDevicePciGetState(zes_device, &zes_pci_state); // broken on Linux
 		zesDevicePciGetProperties(zes_device, &zes_pci_properties);
@@ -1373,8 +1407,11 @@ void finalize_graphs() {
 
 
 
-string value_to_string(const uint x) {
+string current_to_string(const uint x) {
 	return x<max_uint ? to_string(x) : "?";
+}
+string max_to_string(const uint x) {
+	return x<max_uint&&x>0u ? to_string(x) : "?";
 }
 void print_percentage(const uint percentage, const string suffix) {
 	int k = 4, colors[] = { color_green, color_yellow, color_orange, color_red };
@@ -1405,7 +1442,7 @@ void print_progress_number(uint width, const uint value_current, const uint valu
 	} else {
 		uint k = 4u, colors[] = { color_green, color_yellow, color_orange, color_red };
 		//uint k = 6u, colors[] = { color_dark_blue, color_magenta, color_red, color_orange, color_yellow, color_white };
-		string v = value_to_string(value_current)+(unit!="%"&&width>19u ? " / "+to_string(value_max) : "")+unit;
+		string v = current_to_string(value_current)+(unit!="%"&&width>19u ? " / "+to_string(value_max) : "")+unit;
 		const uint l = max(width-2u, length(v));
 		uint percentage = ::percentage(value_current, value_max);
 		percentage = percentage==(uint)max_uchar ? 0u : percentage;
@@ -1464,15 +1501,15 @@ int get_vendor_color_ascii(const char vendor) {
 void print_specs() {
 	const int label_color = color_light_blue;
 	print("CPU  ", label_color); print(": "); print(cpu.name, get_vendor_color_ascii(cpu.vendor)); println(" ("+to_string(cpu.cores)+" threads)");
-	print("RAM  ", label_color); println(": "+value_to_string(cpu.memory_max) +" MB");
-	print("PCIe ", label_color); println(": "+value_to_string(cpu.pcie_bandwidth_max) +" MB/s");
+	print("RAM  ", label_color); println(": "+max_to_string(cpu.memory_max) +" MB");
+	print("PCIe ", label_color); println(": "+max_to_string(cpu.pcie_bandwidth_max) +" MB/s");
 	for(uint g=0u; g<gpu_number; g++) {
 		println();
 		print("GPU "+to_string(g+1u), label_color); print(": "); println(gpus[g].name, get_vendor_color_ascii(gpus[g].vendor));
-		print("VRAM ", label_color); println(": "+value_to_string(gpus[g].memory_max) +" MB @ "+to_string((gpus[g].memory_bandwidth_max+500u)/1000u)+" GB/s ("+value_to_string(gpus[g].memory_bus_width)+"-bit @ "+value_to_string(gpus[g].clock_memory_max*gpus[g].memory_transfers_per_clock)+" MT/s)");
-		print("TDP  ", label_color); println(": "+value_to_string(gpus[g].power_max) +" W");
-		print("Clock", label_color); println(": "+value_to_string(gpus[g].clock_core_max) +" MHz (core), "+value_to_string(gpus[g].clock_memory_max) +" MHz (memory)");
-		print("PCIe ", label_color); println(": "+value_to_string(gpus[g].pcie_bandwidth_max)+" MB/s (PCIe "+value_to_string(gpus[g].pcie_gen_max)+".0 x"+value_to_string(gpus[g].pcie_width_max)+")");
+		print("VRAM ", label_color); println(": "+max_to_string(gpus[g].memory_max) +" MB @ "+to_string((gpus[g].memory_bandwidth_max+500u)/1000u)+" GB/s ("+max_to_string(gpus[g].memory_bus_width)+"-bit @ "+max_to_string(gpus[g].clock_memory_max*gpus[g].memory_transfers_per_clock)+" MT/s)");
+		print("TDP  ", label_color); println(": "+max_to_string(gpus[g].power_max) +" W");
+		print("Clock", label_color); println(": "+max_to_string(gpus[g].clock_core_max) +" MHz (core), "+max_to_string(gpus[g].clock_memory_max) +" MHz (memory)");
+		print("PCIe ", label_color); println(": "+max_to_string(gpus[g].pcie_bandwidth_max)+" MB/s (PCIe "+max_to_string(gpus[g].pcie_gen_max)+".0 x"+max_to_string(gpus[g].pcie_width_max)+", ReBar "+(gpus[g].rebar==max_uint ? "unknown" : gpus[g].rebar ? "enabled" : "disabled")+")");
 	}
 }
 void print_data_bar(uint width, uint height) {
