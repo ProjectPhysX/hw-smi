@@ -9,7 +9,7 @@ A minimal, cross-compatible CPU/GPU telemetry monitor with accurate data directl
 <img src="https://github.com/user-attachments/assets/cf4c6716-e688-490d-923c-473b33f0a18d" width="100%">
 
 ## Hardware/OS Support
-| Metric<br>(Windows/Linux) | CPUs<br>[Win32](https://learn.microsoft.com/de-de/windows/win32/apiindex/api-index-portal)/`/proc` | &nbsp;Nvidia&nbsp;GPUs&nbsp;<br>[NVML](https://github.com/NVIDIA/nvidia-settings/blob/main/src/nvml.h) | &nbsp;&nbsp;&nbsp;AMD&nbsp;GPUs&nbsp;&nbsp;&nbsp;<br>[ADLX](https://github.com/GPUOpen-LibrariesAndSDKs/ADLX/blob/main/SDK/Include/IPerformanceMonitoring.h)/[AMDSMI](https://github.com/ROCm/amdsmi/blob/amd-mainline/include/amd_smi/amdsmi.h) | &nbsp;&nbsp;Intel&nbsp;GPUs&nbsp;&nbsp;<br>[SYSMAN](https://github.com/oneapi-src/level-zero/blob/master/include/zes_api.h) |
+| Metric<br>(Windows/Linux) | CPUs<br>[Win32](https://learn.microsoft.com/de-de/windows/win32/apiindex/api-index-portal)/`/proc` | &nbsp;Nvidia&nbsp;GPUs&nbsp;<br>[NVML](https://github.com/NVIDIA/nvidia-settings/blob/main/src/nvml.h) | &nbsp;&nbsp;&nbsp;AMD&nbsp;GPUs&nbsp;&nbsp;&nbsp;<br>[ADLX](https://github.com/GPUOpen-LibrariesAndSDKs/ADLX/blob/main/SDK/Include/IPerformanceMonitoring.h)/[AMDSMI](https://github.com/ROCm/rocm-systems/blob/develop/projects/amdsmi/include/amd_smi/amdsmi.h) | &nbsp;&nbsp;Intel&nbsp;GPUs&nbsp;&nbsp;<br>[SYSMAN](https://github.com/oneapi-src/level-zero/blob/master/include/zes_api.h) |
 | :---------------------  | :---------: | :---------: | :---------: | :---------: |
 | device name             |   ✅/✅    |   ✅/✅    |   ✅/✅    |   ✅/✅    |
 | per-core/avg usage [%]  | ✅✅/✅✅ | ✅✅/✅✅ | ✅✅/✅✅ | ✅✅/❎✅ |

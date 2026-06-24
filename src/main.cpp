@@ -589,7 +589,7 @@ void gpu_finalize_amd() {
 // not available: fan_max, rebar
 // broken: pcie_bandwidth_current
 // unreliable/estimate: -
-#include "AMDSMI/include/amdsmi.h" // https://github.com/ROCm/amdsmi/blob/amd-mainline/include/amd_smi/amdsmi.h https://rocm.docs.amd.com/projects/amdsmi/en/latest/how-to/amdsmi-cpp-lib.html
+#include "AMDSMI/include/amdsmi.h" // https://github.com/ROCm/rocm-systems/blob/develop/projects/amdsmi/include/amd_smi/amdsmi.h https://rocm.docs.amd.com/projects/amdsmi/en/latest/how-to/amdsmi-cpp-lib.html
 uint amdsmi_gpu_start=0u, amdsmi_gpu_number=0u;
 vector<amdsmi_processor_handle> amdsmi_devices;
 void gpu_initialize_amd() {

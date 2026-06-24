@@ -60,22 +60,22 @@ fi
 
 if [[ $NVIDIA_LIB && $AMD_LIB && $INTEL_LIB ]]; then # Nvidia+AMD+Intel GPUs
 	echo -e "\033[92mInfo\033[0m: Compiling for \033[32mNvidia\033[0m+\033[31mAMD\033[0m+\033[94mIntel\033[0m GPUs:"
-	echo_and_execute g++ src/main.cpp -o bin/hw-smi -std=c++17 -O3 -D NVIDIA_GPU -D AMD_GPU -D INTEL_GPU $NVIDIA_LIB $AMD_LIB $INTEL_LIB
+	echo_and_execute g++ src/main.cpp -o bin/hw-smi -std=c++17 -O3 -D NVIDIA_GPU -D AMD_GPU -D INTEL_GPU $NVIDIA_LIB $AMD_LIB $INTEL_LIB -Wl,-rpath=/opt/rocm/lib
 elif [[ $NVIDIA_LIB && $AMD_LIB ]]; then # Nvidia+AMD GPUs
 	echo -e "\033[92mInfo\033[0m: Compiling for \033[32mNvidia\033[0m+\033[31mAMD\033[0m GPUs:"
-	echo_and_execute g++ src/main.cpp -o bin/hw-smi -std=c++17 -O3 -D NVIDIA_GPU -D AMD_GPU $NVIDIA_LIB $AMD_LIB
+	echo_and_execute g++ src/main.cpp -o bin/hw-smi -std=c++17 -O3 -D NVIDIA_GPU -D AMD_GPU $NVIDIA_LIB $AMD_LIB -Wl,-rpath=/opt/rocm/lib
 elif [[ $NVIDIA_LIB && $INTEL_LIB ]]; then # Nvidia+Intel GPUs
 	echo -e "\033[92mInfo\033[0m: Compiling for \033[32mNvidia\033[0m+\033[94mIntel\033[0m GPUs:"
 	echo_and_execute g++ src/main.cpp -o bin/hw-smi -std=c++17 -O3 -D NVIDIA_GPU -D INTEL_GPU $NVIDIA_LIB $INTEL_LIB
 elif [[ $AMD_LIB && $INTEL_LIB ]]; then # AMD+Intel GPUs
 	echo -e "\033[92mInfo\033[0m: Compiling for \033[31mAMD\033[0m+\033[94mIntel\033[0m GPUs:"
-	echo_and_execute g++ src/main.cpp -o bin/hw-smi -std=c++17 -O3 -D AMD_GPU -D INTEL_GPU $AMD_LIB $INTEL_LIB
+	echo_and_execute g++ src/main.cpp -o bin/hw-smi -std=c++17 -O3 -D AMD_GPU -D INTEL_GPU $AMD_LIB $INTEL_LIB -Wl,-rpath=/opt/rocm/lib
 elif [[ $NVIDIA_LIB ]]; then # Nvidia GPUs
 	echo -e "\033[92mInfo\033[0m: Compiling for \033[32mNvidia\033[0m GPUs:"
 	echo_and_execute g++ src/main.cpp -o bin/hw-smi -std=c++17 -O3 -D NVIDIA_GPU $NVIDIA_LIB
 elif [[ $AMD_LIB ]]; then # AMD GPUs
 	echo -e "\033[92mInfo\033[0m: Compiling for \033[31mAMD\033[0m GPUs:"
-	echo_and_execute g++ src/main.cpp -o bin/hw-smi -std=c++17 -O3 -D AMD_GPU $AMD_LIB
+	echo_and_execute g++ src/main.cpp -o bin/hw-smi -std=c++17 -O3 -D AMD_GPU $AMD_LIB -Wl,-rpath=/opt/rocm/lib
 elif [[ $INTEL_LIB ]]; then # Intel GPUs
 	echo -e "\033[92mInfo\033[0m: Compiling for \033[94mIntel\033[0m GPUs:"
 	echo_and_execute g++ src/main.cpp -o bin/hw-smi -std=c++17 -O3 -D INTEL_GPU $INTEL_LIB
