@@ -1684,6 +1684,81 @@ void print_data_graph(uint width, uint height) {
 	show_console_cursor(true);
 }
 
+#include <ctime>
+#pragma warning(disable:4996)
+string get_date_and_time(){
+	auto now(std::chrono::system_clock::now());
+	auto seconds_since_epoch(std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()));
+	std::time_t now_t(std::chrono::system_clock::to_time_t(std::chrono::system_clock::time_point(seconds_since_epoch)));
+	char s[20];
+	std::strftime(s, 20, "%Y-%m-%d %T", std::localtime(&now_t));
+	string nanoseconds = std::to_string((std::chrono::duration<long long, std::nano>(now.time_since_epoch()-seconds_since_epoch)).count());
+	nanoseconds = string(9u-nanoseconds.length(), '0')+nanoseconds;
+	return string(s)+"."+nanoseconds.substr(0, 2);
+}
+string get_date_and_time_filename(){
+	auto now(std::chrono::system_clock::now());
+	auto seconds_since_epoch(std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()));
+	std::time_t now_t(std::chrono::system_clock::to_time_t(std::chrono::system_clock::time_point(seconds_since_epoch)));
+	char s[20];
+	std::strftime(s, 20, "%Y-%m-%d-%H-%M-%S", std::localtime(&now_t));
+	return string(s);
+}
+string log_initialize() {
+	string r = "                      , "+alignl(cpu.cores*5u+23u+(gpu_number>0u)*9u, cpu.name);
+	for(uint g=0u; g<gpu_number; g++) r += ", "+alignl(56u, gpus[g].name);
+	r += "\nDate       Time       ";
+	for(uint i=0; i<cpu.cores; i++) r += ", "+alignr(3u, i);
+	r += ", CPU, RAM    , Tmp, Clk ";
+	if(gpu_number>0u) r += ", PCIe BW";
+	for(uint g=0u; g<gpu_number; g++) r += ", GPU, BW   , VRAM   , Tmp, Pwr , Fan , CClk, MClk, PCIe  ";
+	r += "\nYYYY-MM-DD hh:mm:ss.ss";
+	for(uint i=0; i<cpu.cores; i++) r += ",   %";
+	r += ",   %,      MB,  'C,  MHz";
+	if(gpu_number>0u) r += ",    MB/s";
+	for(uint g=0u; g<gpu_number; g++) r += ",   %,  GB/s,      MB,  'C,    W,  RPM,  MHz,  MHz,   MB/s";
+	r += "\nHardware Specs        , ";
+	for(uint i=0; i<cpu.cores; i++) r += alignr(3u, max_to_string(cpu.usage_max))+", "; // %
+	r +=      alignr(3u, max_to_string(cpu.usage_max      )); // %
+	r += ", "+alignr(7u, max_to_string(cpu.memory_max     )); // MB
+	r += ", "+alignr(3u, max_to_string(cpu.temperature_max)); // 'C
+	r += ", "+alignr(4u, max_to_string(cpu.clock_max      )); // MHz
+	if(gpu_number>0u) r += ", "+alignr(3u, alignr(7u, max_to_string(cpu.pcie_bandwidth_max))); // MB/s
+	for(uint g=0u; g<gpu_number; g++) {
+		r += ", "+alignr(3u, max_to_string(gpus[g].usage_max         )); // %
+		r += ", "+alignr(5u, max_to_string(gpus[g].memory_bandwidth_max<max_uint ? (gpus[g].memory_bandwidth_max+500u)/1000u : max_uint)); // GB/s
+		r += ", "+alignr(7u, max_to_string(gpus[g].memory_max        )); // MB
+		r += ", "+alignr(3u, max_to_string(gpus[g].temperature_max   )); // 'C
+		r += ", "+alignr(4u, max_to_string(gpus[g].power_max         )); // W
+		r += ", "+alignr(4u, max_to_string(gpus[g].fan_max           )); // RPM
+		r += ", "+alignr(4u, max_to_string(gpus[g].clock_core_max    )); // MHz
+		r += ", "+alignr(4u, max_to_string(gpus[g].clock_memory_max  )); // MHz
+		r += ", "+alignr(6u, max_to_string(gpus[g].pcie_bandwidth_max)); // MB/s
+	}
+	return r;
+}
+string log_update() {
+	string r = get_date_and_time()+", ";
+	for(uint i=0; i<cpu.cores; i++) r += alignr(3u, current_to_string(cpu.usage_core_current[i]))+", "; // %
+	r +=      alignr(3u, current_to_string(cpu.usage_current      )); // %
+	r += ", "+alignr(7u, current_to_string(cpu.memory_current     )); // MB
+	r += ", "+alignr(3u, current_to_string(cpu.temperature_current)); // 'C
+	r += ", "+alignr(4u, current_to_string(cpu.clock_current      )); // MHz
+	if(gpu_number>0u) r += ", "+alignr(3u, alignr(7u, current_to_string(cpu.pcie_bandwidth_current))); // MB/s
+	for(uint g=0u; g<gpu_number; g++) {
+		r += ", "+alignr(3u, current_to_string(gpus[g].usage_current         )); // %
+		r += ", "+alignr(5u, current_to_string(gpus[g].memory_bandwidth_current<max_uint ? (gpus[g].memory_bandwidth_current+500u)/1000u : max_uint)); // GB/s
+		r += ", "+alignr(7u, current_to_string(gpus[g].memory_current        )); // MB
+		r += ", "+alignr(3u, current_to_string(gpus[g].temperature_current   )); // 'C
+		r += ", "+alignr(4u, current_to_string(gpus[g].power_current         )); // W
+		r += ", "+alignr(4u, current_to_string(gpus[g].fan_current           )); // RPM
+		r += ", "+alignr(4u, current_to_string(gpus[g].clock_core_current    )); // MHz
+		r += ", "+alignr(4u, current_to_string(gpus[g].clock_memory_current  )); // MHz
+		r += ", "+alignr(6u, current_to_string(gpus[g].pcie_bandwidth_current)); // MB/s
+	}
+	return r;
+}
+
 
 
 #ifndef WINDOWS_GRAPHICS
@@ -1698,21 +1773,29 @@ int main(int argc, char* argv[]) {
 #endif // Linux
 	const vector<string> main_arguments = get_main_arguments(argc, argv);
 	bool graphs = false;
+	bool log = false;
 	initialize_data();
 	update_data();
 	if(main_arguments.size()>0) {
-		if(contains(main_arguments[0], "-g")) {
+		string arguments = main_arguments[0];
+		for(uint i=1u; i<(uint)main_arguments.size(); i++) arguments += " "+main_arguments[i];
+		if(contains(arguments, "-g")) {
 			graphs = true;
-		} else if(contains(main_arguments[0], "-b")) {
+		} else if(contains(arguments, "-b")) {
 			graphs = false;
-		} else {
-			println("hw-smi (c) Dr. Moritz Lehmann\nhttps://github.com/ProjectPhysX/hw-smi\n\nCommand-line options:\n -b / --bars  : visualize metrics as bars (default)\n -g / --graphs: visualize metrics as graphs\n -h / --help  : print this message\n\nHardware detected:\n");
+		} else if(contains(arguments, "-h")||!contains(arguments, "-l")) {
+			println("hw-smi (c) Dr. Moritz Lehmann\nhttps://github.com/ProjectPhysX/hw-smi\n\nCommand-line options:\n -b / --bars  : visualize metrics as bars (default)\n -g / --graphs: visualize metrics as graphs\n -l / --log   : log metrics into a file hw-smi.log\n -h / --help  : print this message\n\nHardware detected:\n");
 			print_specs();
 			print("\nPress Enter to continue.");
 			wait();
 		}
+		if(contains(arguments, "-l")) {
+			log = true;
+		}
 	}
 	if(graphs) initialize_graphs();
+	const string log_filepath = get_exe_path()+"hw-smi-"+get_date_and_time_filename()+".log";
+	if(log) write_file(log_filepath, log_initialize()+"\n");
 	Clock clock;
 	uint last_width=0u, last_height=0u;
 	while(running) {
@@ -1727,6 +1810,7 @@ int main(int argc, char* argv[]) {
 		} else {
 			print_data_bar(width, height);
 		}
+		if(log) write_line(log_filepath, log_update());
 		sleep(1.0/(double)UPDATE_FREQUENCY-clock.stop());
 	}
 	clear_console();

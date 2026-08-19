@@ -36,7 +36,7 @@ A minimal, cross-compatible CPU/GPU telemetry monitor with accurate data directl
 - https://github.com/GPUOpen-LibrariesAndSDKs/ADLX/issues/27
 - https://github.com/ROCm/amdsmi/issues/182 / [183](https://github.com/ROCm/amdsmi/issues/183) / [188](https://github.com/ROCm/amdsmi/issues/188)
 - https://github.com/intel/drivers.gpu.control-library/issues/120 / [146](https://github.com/intel/drivers.gpu.control-library/issues/146) / [138](https://github.com/intel/drivers.gpu.control-library/issues/138) / [149](https://github.com/intel/drivers.gpu.control-library/issues/149)
-- https://github.com/oneapi-src/level-zero/issues/434 / [440](https://github.com/oneapi-src/level-zero/issues/440) / [441](https://github.com/oneapi-src/level-zero/issues/441) / [444](https://github.com/oneapi-src/level-zero/issues/444)
+- https://github.com/intel/compute-runtime/issues/932 / [926](https://github.com/intel/compute-runtime/issues/926) / [925](https://github.com/intel/compute-runtime/issues/925) / [924](https://github.com/intel/compute-runtime/issues/924)
 
 </details>
 
@@ -56,6 +56,7 @@ A minimal, cross-compatible CPU/GPU telemetry monitor with accurate data directl
   hw-smi.exe
   hw-smi.exe --bars
   hw-smi.exe --graphs
+  hw-smi.exe --log
   hw-smi.exe --help
   ```
 - Note that it will also work without `administrator` permissions. However, some telemetry counters on Intel GPUs are not available without `administrator` permissions.
@@ -75,8 +76,22 @@ A minimal, cross-compatible CPU/GPU telemetry monitor with accurate data directl
   sudo bin/hw-smi
   sudo bin/hw-smi --bars
   sudo bin/hw-smi --graphs
+  sudo bin/hw-smi --log
   sudo bin/hw-smi --help
   ```
 - Note that it will also work without `sudo`. However, some telemetry counters on Intel GPUs are not available without `sudo`.
 
-</details>
+## Logging Telemetry Data
+- Run hw-smi with the `--log` command-line option. This will write all telemetry data into a file `hw-smi-YYYY-DD-MM-hh-mm-ss.log` located next to the hw-smi executable.
+- The telemetry data in the file is formatted as follows:
+  ```
+                        , Intel Core i7-8700K                                                                         , NVIDIA TITAN Xp                                         
+  Date       Time       ,   0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11, CPU, RAM    , Tmp, Clk , PCIe BW, GPU, BW   , VRAM   , Tmp, Pwr , Fan , CClk, MClk, PCIe  
+  YYYY-MM-DD hh:mm:ss.ss,   %,   %,   %,   %,   %,   %,   %,   %,   %,   %,   %,   %,   %,      MB,  'C,  MHz,    MB/s,   %,  GB/s,      MB,  'C,    W,  RPM,  MHz,  MHz,   MB/s
+  Hardware Specs        , 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,   16250,   ?, 5000,    3936, 100,   548,   12288, 100,  250, 5000, 1911, 1426,   3936
+  2026-08-19 17:01:46.29,   0,   5,   0,   0,  11,   0,   5,   0,   0,   0,   0,   0,   4,    7953,   ?, 3696,       0,   0,     0,     163,  35,   16, 1150,  139,  101,      0
+  2026-08-19 17:01:46.69,   8,   2,   2,  14,  14,   2,   8,   2,  26,   2,   8,   2,   3,    7952,   ?, 3696,       0,   0,     0,     163,  35,   16, 1150,  139,  101,      0
+  2026-08-19 17:01:47.05,  10,   0,  10,   4,  22,   0,  10,   0,  10,   0,  16,   4,   7,    7946,   ?, 3696,       0,   0,     0,     163,  35,   16, 1150,  139,  101,      0
+  2026-08-19 17:01:47.41,  12,  12,   0,  17,   0,   0,  12,   0,   6,   0,   0,  12,   8,    7940,   ?, 3696,       0,   0,     0,     163,  35,   16, 1150,  139,  101,      0
+  2026-08-19 17:01:47.79,   8,   8,   8,  14,   0,   0,   8,   0,   0,   2,   2,   0,   8,    7930,   ?, 3696,       0,   0,     0,     163,  35,   16, 1150,  139,  101,      0
+  ```
