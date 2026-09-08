@@ -40,6 +40,54 @@ A minimal, cross-compatible CPU/GPU telemetry monitor with accurate data directl
 
 </details>
 
+## GPU Driver Installation
+
+- **Windows**
+  <details><summary>GPUs</summary>
+
+  - Download and install the [AMD](https://www.amd.com/en/support/download/drivers.html)/[Intel](https://www.intel.com/content/www/us/en/download/785597/intel-arc-iris-xe-graphics-windows.html)/[Nvidia](https://www.nvidia.com/Download/index.aspx) GPU Drivers, which contain the OpenCL Runtime.
+  - Reboot.
+
+  </details>
+- **Linux**
+  <details><summary>Nvidia GPUs</summary>
+
+  - Download and install [Nvidia GPU Drivers](https://www.nvidia.com/Download/index.aspx), which contain the OpenCL Runtime, with:
+    ```bash
+    sudo apt update && sudo apt upgrade -y
+    sudo apt install -y g++ git ocl-icd-libopencl1 ocl-icd-opencl-dev nvidia-driver-580
+    sudo shutdown -r now
+    ```
+
+  </details>
+  <details><summary>AMD GPUs</summary>
+
+  - Download and install [AMD GPU Drivers](https://www.amd.com/en/support/download/linux-drivers.html), which contain the OpenCL Runtime, with:
+    ```bash
+    sudo apt update && sudo apt upgrade -y
+    sudo apt install -y g++ git ocl-icd-libopencl1 ocl-icd-opencl-dev
+    mkdir -p ~/amdgpu
+    wget -P ~/amdgpu https://repo.radeon.com/amdgpu-install/31.50/ubuntu/resolute/amdgpu-install_31.50.315000-1_all.deb
+    sudo apt install -y ~/amdgpu/amdgpu-install*.deb
+    sudo amdgpu-install -y --usecase=graphics,rocm,opencl --opencl=rocr
+    sudo usermod -a -G render,video $(whoami)
+    rm -r ~/amdgpu
+    sudo shutdown -r now
+    ```
+
+  </details>
+  <details><summary>Intel GPUs</summary>
+
+  - Download and install the [OpenCL Runtime](https://github.com/intel/compute-runtime/releases) and [oneAPI Level-Zero-Loader](https://github.com/oneapi-src/level-zero/releases), with:
+    ```bash
+    sudo apt update && sudo apt upgrade -y
+    sudo apt install -y g++ git ocl-icd-libopencl1 ocl-icd-opencl-dev intel-opencl-icd libze1
+    sudo usermod -a -G render $(whoami)
+    sudo shutdown -r now
+    ```
+
+  </details>
+
 ## Compiling the Source Code
 
 ### Windows

@@ -18,9 +18,9 @@ AMD_LIB_B="/usr/lib/x86_64-linux-gnu/libamd_smi.so.0"
 AMD_LIB_C="/usr/lib64/libamd_smi.so"
 AMD_LIB_D="/usr/lib/libamd_smi.so"
 AMD_LIB_E="/opt/rocm/lib/libamd_smi.so"
-INTEL_LIB_A="/usr/lib/x86_64-linux-gnu/libze_intel_gpu.so.1"
-INTEL_LIB_B="/usr/lib64/libze_intel_gpu.so.1"
-INTEL_LIB_C="/usr/lib/libze_intel_gpu.so.1"
+INTEL_LIB_A="/usr/lib/x86_64-linux-gnu/libze_loader.so.1"
+INTEL_LIB_B="/usr/lib64/libze_loader.so.1"
+INTEL_LIB_C="/usr/lib/libze_loader.so.1"
 
   if [[ -f $NVIDIA_LIB_A ]]; then NVIDIA_LIB=$NVIDIA_LIB_A;
 elif [[ -f $NVIDIA_LIB_B ]]; then NVIDIA_LIB=$NVIDIA_LIB_B;
@@ -43,19 +43,19 @@ elif [[ -f $INTEL_LIB_C  ]]; then INTEL_LIB=$INTEL_LIB_C; fi
 if [[ $NVIDIA_LIB ]]; then
 	echo -e "\033[92mInfo\033[0m: \033[32mNvidia\033[0m GPU driver found! --> \033[32m$NVIDIA_LIB\033[0m"
 else
-	echo -e "\033[33mWarning\033[0m: No \033[32mNvidia\033[0m GPU driver found!"
+	echo -e "\033[33mWarning\033[0m: No \033[32mNvidia\033[0m GPU driver found! See https://github.com/ProjectPhysX/hw-smi#gpu-driver-installation"
 fi
 
 if [[ $AMD_LIB ]]; then
 	echo -e "\033[92mInfo\033[0m: \033[31mAMD\033[0m GPU driver found! --> \033[31m$AMD_LIB\033[0m"
 else
-	echo -e "\033[33mWarning\033[0m: No \033[31mAMD\033[0m GPU driver found!"
+	echo -e "\033[33mWarning\033[0m: No \033[31mAMD\033[0m GPU driver found! See https://github.com/ProjectPhysX/hw-smi#gpu-driver-installation"
 fi
 
 if [[ $INTEL_LIB ]]; then
 	echo -e "\033[92mInfo\033[0m: \033[94mIntel\033[0m GPU driver found! --> \033[94m$INTEL_LIB\033[0m"
 else
-	echo -e "\033[33mWarning\033[0m: No \033[94mIntel\033[0m GPU driver found!"
+	echo -e "\033[33mWarning\033[0m: No \033[94mIntel\033[0m GPU driver found! See https://github.com/ProjectPhysX/hw-smi#gpu-driver-installation"
 fi
 
 if [[ $NVIDIA_LIB && $AMD_LIB && $INTEL_LIB ]]; then # Nvidia+AMD+Intel GPUs
