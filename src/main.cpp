@@ -578,7 +578,7 @@ void gpu_update_amd() {
 		gpus[g].fan_current = (uint)gpu_fan_current;
 		gpus[g].clock_core_current = (uint)gpu_clock_core_current;
 		gpus[g].clock_memory_current = (uint)gpu_clock_memory_current;
-		gpus[g].memory_bandwidth_current = gpus[g].clock_memory_max>0u ? gpus[g].memory_bandwidth_max*to_uint(gpu_usage/100.0)*(uint)gpu_clock_memory_current/gpus[g].clock_memory_max : 0u; // estimate VRAM bandwidth via GPU usage and memory clock
+		gpus[g].memory_bandwidth_current = gpus[g].clock_memory_max>0u ? to_uint((float)gpus[g].memory_bandwidth_max*0.01f*(float)gpu_usage*(float)gpu_clock_memory_current/(float)gpus[g].clock_memory_max) : 0u; // estimate VRAM bandwidth via GPU usage and memory clock
 	}
 }
 void gpu_finalize_amd() {
@@ -1125,7 +1125,11 @@ void gpu_initialize_intel() {
 		zesDevicePciGetBars(zes_device, &zes_bar_count, zes_pci_bar_properties);
 		bool zes_rebar = false;
 		for(uint j=0u; j<zes_bar_count; j++) {
+#if defined(_WIN32)
 			zes_rebar = zes_rebar||(zes_pci_bar_properties_1_2->resizableBarSupported&&zes_pci_bar_properties_1_2->resizableBarEnabled);
+#elif defined(__linux__)
+			zes_rebar = zes_rebar||zes_pci_bar_properties_1_2->resizableBarSupported; // zes_pci_bar_properties_1_2->resizableBarEnabled is broken on Linux (always false)
+#endif // Linux
 		}
 		gpus[g].rebar = (uint)zes_rebar;
 		delete[] zes_pci_bar_properties_1_2;
