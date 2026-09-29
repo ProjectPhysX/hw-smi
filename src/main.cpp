@@ -1169,8 +1169,6 @@ void gpu_update_intel() {
 			const uint gpu_memory_bandwidth_current = zes_memory_bandwidth_interval>0ull ? (uint)((zes_mem_bandwidth.readCounter+zes_mem_bandwidth.writeCounter-zes_last_readwrite[i]+zes_memory_bandwidth_interval/2ull)/zes_memory_bandwidth_interval) : gpus[g].memory_bandwidth_current; // reuse last value if interval is 0
 			zes_available_readwrite[i] = zes_available_readwrite[i]||zes_mem_bandwidth.readCounter+zes_mem_bandwidth.writeCounter>0ull; // harden against reading dropouts
 			gpus[g].memory_bandwidth_current = zes_available_readwrite[i] ? (gpu_memory_bandwidth_current<2u*gpus[g].memory_bandwidth_max ? gpu_memory_bandwidth_current : 0u) : max_uint; // harden against spikes
-			uint zes_memory_bandwidth_max = (uint)((zes_mem_bandwidth.maxBandwidth+500000ull)/1000000ull); // harden against reading dropouts
-			gpus[g].memory_bandwidth_max = max(gpus[g].memory_bandwidth_max, zes_memory_bandwidth_max<3300000u ? zes_memory_bandwidth_max : zes_memory_bandwidth_max/8u); // zes_mem_bandwidth.maxBandwidth may wrongly report bandwidth in bits/s instead of Bytes/s, so divide by 8
 			zes_last_readwrite[i] = zes_mem_bandwidth.readCounter+zes_mem_bandwidth.writeCounter;
 			zes_last_readwrite_timestamp[i] = zes_mem_bandwidth.timestamp;
 			gpus[g].memory_max = max(gpus[g].memory_max, (uint)((max(zes_mem_properties.physicalSize, zes_mem_state.size)+524288ull)/1048576ull)); // harden against broken counters and reading dropouts
