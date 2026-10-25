@@ -67,7 +67,7 @@ A minimal, cross-compatible CPU/GPU telemetry monitor with accurate data directl
     sudo apt update && sudo apt upgrade -y
     sudo apt install -y g++ git ocl-icd-libopencl1 ocl-icd-opencl-dev
     mkdir -p ~/amdgpu
-    wget -P ~/amdgpu https://repo.radeon.com/amdgpu-install/31.50/ubuntu/resolute/amdgpu-install_31.50.315000-1_all.deb
+    wget -P ~/amdgpu https://repo.radeon.com/amdgpu-install/31.60/ubuntu/resolute/amdgpu-install_31.60.316000-1_all.deb
     sudo apt install -y ~/amdgpu/amdgpu-install*.deb
     sudo amdgpu-install -y --usecase=graphics,rocm,opencl --opencl=rocr
     sudo usermod -a -G render,video $(whoami)
