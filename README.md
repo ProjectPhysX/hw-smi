@@ -34,7 +34,7 @@ A minimal, cross-compatible CPU/GPU telemetry monitor with accurate data directl
 <details><summary>API issues submitted</summary>
 
 - https://github.com/GPUOpen-LibrariesAndSDKs/ADLX/issues/27
-- https://github.com/ROCm/amdsmi/issues/182 / [183](https://github.com/ROCm/amdsmi/issues/183) / [188](https://github.com/ROCm/amdsmi/issues/188)
+- https://github.com/ROCm/rocm-systems/issues/5036 / [5035](https://github.com/ROCm/rocm-systems/issues/5035) / [5034](https://github.com/ROCm/rocm-systems/issues/5034) / [14222](https://github.com/ROCm/rocm-systems/issues/14222)
 - https://github.com/intel/drivers.gpu.control-library/issues/120 / [146](https://github.com/intel/drivers.gpu.control-library/issues/146) / [138](https://github.com/intel/drivers.gpu.control-library/issues/138) / [149](https://github.com/intel/drivers.gpu.control-library/issues/149)
 - https://github.com/intel/compute-runtime/issues/932 / [926](https://github.com/intel/compute-runtime/issues/926) / [925](https://github.com/intel/compute-runtime/issues/925) / [924](https://github.com/intel/compute-runtime/issues/924)
 

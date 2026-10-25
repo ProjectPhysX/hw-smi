@@ -511,6 +511,7 @@ uint adlx_get_gpu_bandwidth_max(const string& device_id, const uint gpu_vram, co
 	else if(device_id=="744C"&&gpu_vram==48u) return  864000u; // AMD Radeon Pro W7900
 	else if(device_id=="7590"&&gpu_vram==16u) return  320000u; // AMD Radeon RX 9060 XT
 	else if(device_id=="7550"&&gpu_vram==16u) return  640000u; // AMD Radeon RX 9070 (XT)
+	else if(device_id=="7551"&&gpu_vram==32u) return  640000u; // AMD Radeon AI Pro R9700
 	else return (gpu_vram*16u)*gpu_clock_memory_max; // fallback: gpu_memory_bus_width*gpu_clock_memory_max
 }
 void gpu_initialize_amd() {
@@ -677,7 +678,7 @@ void gpu_update_amd() {
 		amdsmi_get_clk_freq(amdsmi_device, AMDSMI_CLK_TYPE_GFX, &amdsmi_frequencies_core); // in Hz
 		amdsmi_get_clk_freq(amdsmi_device, AMDSMI_CLK_TYPE_MEM, &amdsmi_frequencies_memory); // in Hz
 		const bool support_pcie_info = (AMDSMI_STATUS_SUCCESS==amdsmi_get_pcie_info(amdsmi_device, &amdsmi_pcie_info)); // broken, amdsmi_pcie_info.pcie_metric.pcie_bandwidth=4294967295
-		const bool support_gpu_metrics = (AMDSMI_STATUS_SUCCESS==amdsmi_get_gpu_metrics_info(amdsmi_device, &amdsmi_gpu_metrics)); // broken, amdsmi_gpu_metrics.pcie_bandwidth_inst=18446744073709551615
+		const bool support_gpu_metrics = false; // (AMDSMI_STATUS_SUCCESS==amdsmi_get_gpu_metrics_info(amdsmi_device, &amdsmi_gpu_metrics)); // broken (segfaults), amdsmi_gpu_metrics.pcie_bandwidth_inst=18446744073709551615
 		const bool support_gpu_pci = (AMDSMI_STATUS_SUCCESS==amdsmi_get_gpu_pci_throughput(amdsmi_device, &amdsmi_pcie_sent, &amdsmi_pcie_received, &amdsmi_pcie_max_pkt_sz)); // broken, returns 0's
 		gpus[g].usage_current = amdsmi_engine_usage.gfx_activity; // in %
 		gpus[g].memory_bandwidth_current = (gpus[g].memory_bandwidth_max*amdsmi_engine_usage.umc_activity+50u)/100u; // +50u for correct rounding
