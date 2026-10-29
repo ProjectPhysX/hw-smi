@@ -678,7 +678,7 @@ void gpu_update_amd() {
 		amdsmi_get_clk_freq(amdsmi_device, AMDSMI_CLK_TYPE_GFX, &amdsmi_frequencies_core); // in Hz
 		amdsmi_get_clk_freq(amdsmi_device, AMDSMI_CLK_TYPE_MEM, &amdsmi_frequencies_memory); // in Hz
 		const bool support_pcie_info = (AMDSMI_STATUS_SUCCESS==amdsmi_get_pcie_info(amdsmi_device, &amdsmi_pcie_info)); // broken, amdsmi_pcie_info.pcie_metric.pcie_bandwidth=4294967295
-		const bool support_gpu_metrics = false; // (AMDSMI_STATUS_SUCCESS==amdsmi_get_gpu_metrics_info(amdsmi_device, &amdsmi_gpu_metrics)); // broken (segfaults), amdsmi_gpu_metrics.pcie_bandwidth_inst=18446744073709551615
+		const bool support_gpu_metrics = (AMDSMI_STATUS_SUCCESS==amdsmi_get_gpu_metrics_info(amdsmi_device, &amdsmi_gpu_metrics)); // broken, amdsmi_gpu_metrics.pcie_bandwidth_inst=18446744073709551615
 		const bool support_gpu_pci = (AMDSMI_STATUS_SUCCESS==amdsmi_get_gpu_pci_throughput(amdsmi_device, &amdsmi_pcie_sent, &amdsmi_pcie_received, &amdsmi_pcie_max_pkt_sz)); // broken, returns 0's
 		gpus[g].usage_current = amdsmi_engine_usage.gfx_activity; // in %
 		gpus[g].memory_bandwidth_current = (gpus[g].memory_bandwidth_max*amdsmi_engine_usage.umc_activity+50u)/100u; // +50u for correct rounding
