@@ -65,7 +65,7 @@ A minimal, cross-compatible CPU/GPU telemetry monitor with accurate data directl
   - Download and install [AMD GPU Drivers](https://www.amd.com/en/support/download/linux-drivers.html), which contain the OpenCL Runtime, with:
     ```bash
     sudo apt update && sudo apt upgrade -y
-    sudo apt install -y g++ git ocl-icd-libopencl1 ocl-icd-opencl-dev
+    sudo apt install -y g++ git ocl-icd-libopencl1 ocl-icd-opencl-dev rocm-opencl-icd rocm-opencl-runtime
     mkdir -p ~/amdgpu
     wget -P ~/amdgpu https://repo.radeon.com/amdgpu-install/31.60/ubuntu/resolute/amdgpu-install_31.60.316000-1_all.deb
     sudo apt install -y ~/amdgpu/amdgpu-install*.deb
