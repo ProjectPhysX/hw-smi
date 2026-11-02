@@ -1126,11 +1126,7 @@ void gpu_initialize_intel() {
 		zesDevicePciGetBars(zes_device, &zes_bar_count, zes_pci_bar_properties);
 		bool zes_rebar = false;
 		for(uint j=0u; j<zes_bar_count; j++) {
-#if defined(_WIN32)
-			zes_rebar = zes_rebar||(zes_pci_bar_properties_1_2->resizableBarSupported&&zes_pci_bar_properties_1_2->resizableBarEnabled);
-#elif defined(__linux__)
-			zes_rebar = zes_rebar||zes_pci_bar_properties_1_2->resizableBarSupported; // zes_pci_bar_properties_1_2->resizableBarEnabled is broken on Linux (always false)
-#endif // Linux
+			zes_rebar = zes_rebar||(zes_pci_bar_properties_1_2[j].resizableBarSupported&&zes_pci_bar_properties_1_2[j].resizableBarEnabled);
 		}
 		gpus[g].rebar = (uint)zes_rebar;
 		delete[] zes_pci_bar_properties_1_2;
