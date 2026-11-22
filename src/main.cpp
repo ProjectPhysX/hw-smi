@@ -392,6 +392,40 @@ void cpu_finalize() {
 #pragma warning(disable:26812)
 uint nvml_gpu_start=0u, nvml_gpu_number=0u;
 vector<nvmlDevice_t> nvml_devices;
+uint nvml_get_memory_transfers_per_clock(const uint compute_capability) { // workaround, works for most GPUs but not for all
+	switch(compute_capability) { // depends on memory type: 2 ((LP)DDR1-5, GDDR1-4, HBM1-4), 4 (GDDR5), 8 (GDDR5X, GDDR6), 16 (GDDR6X, GDDR6W, GDDR7)
+		case  10u: return  2u; // GTX 1: GDDR3
+		case  11u: return  2u; // GTX 1: GDDR3
+		case  12u: return  2u; // GTX 2: DDR3
+		case  13u: return  2u; // GTX 2: GDDR3
+		case  20u: return  4u; // GTX 5: GDDR5
+		case  21u: return  4u; // GTX 5: GDDR5
+		case  30u: return  4u; // GTX 6: GDDR5
+		case  32u: return  2u; // Tegra K1: DDR3L
+		case  35u: return  4u; // GTX 7: GDDR5
+		case  37u: return  4u; // K80: GDDR5
+		case  50u: return  4u; // GTX 9: GDDR5
+		case  52u: return  4u; // GTX 9: GDDR5
+		case  53u: return  2u; // Jetson Nano: LPDDR4
+		case  60u: return  2u; // P100: HBM2
+		case  61u: return  8u; // GTX 10: GDDR5X
+		case  62u: return  2u; // Jetson: LPDDR4
+		case  70u: return  2u; // V100: HBM2
+		case  72u: return  2u; // Jetson Xavier: LPDDR4X
+		case  75u: return  8u; // GTX 16/RTX 20: GDDR6
+		case  80u: return  2u; // A100: HBM2e
+		case  86u: return 16u; // RTX 30: GDDR6X
+		case  87u: return  2u; // Jetson Orin: LPDDR5
+		case  89u: return 16u; // RTX 40: GDDR6X
+		case  90u: return  2u; // H200: HBM3e
+		case 100u: return  2u; // B200: HBM3e
+		case 103u: return  2u; // B300: HBM3e
+		case 110u: return  2u; // Jetson T5000/T4000: LPDDR5X
+		case 120u: return 16u; // RTX 50: GDDR7
+		case 121u: return  2u; // GB10: LPDDR5X
+	} // https://developer.nvidia.com/cuda/gpus/legacy https://developer.nvidia.com/cuda/gpus
+	return 16u;
+}
 void gpu_initialize_nvidia() {
 #ifdef _WIN32 // return if nvml.dll is not available
 	if(!LoadLibrary("nvml.dll")) return;
@@ -408,13 +442,16 @@ void gpu_initialize_nvidia() {
 		const nvmlDevice_t& nvml_device = nvml_devices[i];
 		char char_gpu_name[96];
 		uint gpu_memory_transfers_max_half = 0u;
+		int major=0, minor=0;
 		nvmlDeviceGetName(nvml_device, char_gpu_name, 96u);
 		nvmlDeviceGetMaxClockInfo(nvml_device, NVML_CLOCK_SM, &gpus[g].clock_core_max);
 		nvmlDeviceGetMaxClockInfo(nvml_device, NVML_CLOCK_MEM, &gpu_memory_transfers_max_half); // wrongly reports (MT/s / 2) instead of MHz
 		nvmlDeviceGetMemoryBusWidth(nvml_device, &gpus[g].memory_bus_width);
+		nvmlDeviceGetCudaComputeCapability(nvml_device, &major, &minor);
+		const uint compute_capability = 10u*(uint)major+(uint)minor;
 		gpus[g].name = clean_device_name(string(char_gpu_name));
 		gpus[g].vendor = 'N'; // Nvidia
-		gpus[g].memory_transfers_per_clock = 8u; // no data available
+		gpus[g].memory_transfers_per_clock = nvml_get_memory_transfers_per_clock(compute_capability); // no data available
 		gpus[g].memory_bandwidth_max = (gpu_memory_transfers_max_half*2u)*gpus[g].memory_bus_width/8u;
 		gpus[g].clock_memory_max = (gpu_memory_transfers_max_half*2u)/gpus[g].memory_transfers_per_clock;
 	}
